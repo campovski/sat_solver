@@ -38,8 +38,9 @@ class SATProblem:
         self.clauses.append(clause)
 
 
-    def read_from_dimacs(self, f):
-        print '[OK] Starting read_from_dimacs...'
+    def read_from_dimacs(self, f, verbose=False):
+        if verbose:
+            print '[OK] Starting read_from_dimacs...'
 
         with open(f, 'r') as f:
                 for line in f:
@@ -56,4 +57,6 @@ class SATProblem:
         assert self.nbvars > 0, '[ERROR] self.nbvars > 0: self.nbvars = {}'.format(self.nbvars)
         assert len(self.clauses) == self.nbclauses, '[ERROR] len(self.clauses) does not match self.nbclauses:\
             len(self.clauses) = {0}, self.nbclauses = {1}'.format(len(self.clauses), self.nbclauses)
-        print '[OK] Success: read_from_dimacs'
+
+        if verbose:
+            print '[OK] Success: read_from_dimacs'

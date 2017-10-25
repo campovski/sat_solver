@@ -1,40 +1,49 @@
+import sys
+
 class SATSolver:
     def __init__(self, problem=None):
         self.problem = problem
 
     def solve(self, unit=False, pruning=False, simplify=False, f=None, verbose=False):
         assert self.problem.__class__.__name__ == 'SATProblem', \
-            'Problem must be of type SATProblem. type(problem) = {}'.format(self.problem.__class__.__name__)
+                'Problem must be of type SATProblem. type(problem) = {}'.format(self.problem.__class__.__name__)
 
-        print '[OK] Started solving ...'
+        if verbose:
+            print '[OK] Started solving ...'
 
-        unknown = False
+        if unit and pruning and simplify:
+            self.__dpll(verbose=verbose)
+        elif not unit and pruning and not simplify:
+            self.__backtracking(verbose=verbose)
+        elif not unit and not pruning and not simplify:
+            self.__backtracking_naive(verbose=verbose)
 
         if f:
             orig_stdout = sys.stdout
             fout = open(f, 'w')
             sys.stdout = fout
 
-        if unit and pruning and simplify:
-            self.__dpll(verbose=verbose)
-            print self.problem.solution
-        elif not unit and pruning and not simplify:
-            self.__backtracking(verbose=verbose)
-            print self.problem.solution
-        elif not unit and not pruning and not simplify:
-            self.__backtracking_naive(verbose=verbose)
-            print self.problem.solution
+        if self.problem.solution == [0]:
+            print 0
         else:
-            unknown = True
+            output = ''
+            for i in range(self.problem.nbvars):
+                if self.problem.solution[i]:
+                    output += str(i+1)
+                elif self.problem.solution[i] == False:
+                    output += '-' + str(i+1)
+                if i < self.problem.nbvars - 1:
+                    output += ' '
+            print output
+            #print ' '.join([str(i+1) if self.problem.solution[i] elif '-{}'.format(i+1) \
+            #    for i in range(len(self.problem.solution))])
 
         if f:
             sys.stdout = orig_stdout
             fout.close()
 
-        if unknown:
-            print 'Unsupported combination (unit, pruning, simplify)!'
-            return
-        print '[DONE]'
+        if verbose:
+            print '[DONE]'
 
 
     def __backtracking_naive(self, verbose=False):
@@ -42,7 +51,7 @@ class SATSolver:
         def evaluate_clause(clause, assignment):
             for literal in clause:
                 if ( literal & 1 == 0 and assignment[literal/2] ) or \
-                    ( literal & 1 and assignment[literal/2] == False ):
+                        ( literal & 1 and assignment[literal/2] == False ):
                     return True
             return False
 
@@ -97,10 +106,10 @@ class SATSolver:
             falsified = 0
             for literal in clause:
                 if ( literal & 1 == 0 and assignment[literal/2] ) or \
-                    ( literal & 1 and assignment[literal/2] == False ):
+                        ( literal & 1 and assignment[literal/2] == False ):
                     return True
                 if ( literal & 1 and assignment[literal/2] ) or \
-                    ( literal & 1 == 0 and assignment[literal/2] == False ):
+                        ( literal & 1 == 0 and assignment[literal/2] == False ):
                     falsified += 1
             if falsified == len(clause):
                 return False
