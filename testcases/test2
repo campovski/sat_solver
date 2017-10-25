@@ -1,0 +1,10 @@
+c
+c example from https://www.youtube.com/watch?v=D2o3APE9344&t=930
+c it is unsatisfiable
+c
+p cnf 3 5
+1 2 0
+1 -2 0
+-1 2 0
+-1 -2 -3 0
+-1 3 0
