@@ -13,6 +13,8 @@ class SATSolver:
 
         if unit and pruning and simplify:
             self.__dpll(verbose=verbose)
+        elif simplify:
+            self.__backtracking_simplify(verbose=verbose)
         elif not unit and pruning and not simplify:
             self.__backtracking(verbose=verbose)
         elif not unit and not pruning and not simplify:
@@ -46,7 +48,7 @@ class SATSolver:
             print '[DONE]'
 
 
-    def __backtracking_naive(self, verbose=False):
+    def __backtracking_naive(self, verbose):
 
         def evaluate_clause(clause, assignment):
             for literal in clause:
@@ -65,25 +67,25 @@ class SATSolver:
             return True
 
         assignment = [None for _ in range(self.problem.nbvars)]
-        current_position = 0
+        current_depth = 0
         while True:
             if verbose:
-                print '\ncurrent_position = ' + str(current_position)
-            if current_position < 0:
+                print '\ncurrent_depth = ' + str(current_depth)
+            if current_depth < 0:
                 # we have backtracked the var on index 0, meaning no
                 # satisfying assignment was found
                 self.problem.solution = [0]
                 return
 
-            if assignment[current_position] is None:
-                assignment[current_position] = False
-            elif assignment[current_position] == False:
-                assignment[current_position] = True
+            if assignment[current_depth] is None:
+                assignment[current_depth] = False
+            elif assignment[current_depth] == False:
+                assignment[current_depth] = True
             else: # need to backtrack
                 if verbose:
                     print 'Backtracking...'
-                assignment[current_position] = None
-                current_position -= 1
+                assignment[current_depth] = None
+                current_depth -= 1
                 continue
 
             problem_evaluation = evaluate_problem(self.problem, assignment=assignment, verbose=verbose)
@@ -96,11 +98,11 @@ class SATSolver:
                 self.problem.solution = assignment
                 return
 
-            if current_position < self.problem.nbvars - 1:
-                current_position += 1
+            if current_depth < self.problem.nbvars - 1:
+                current_depth += 1
 
 
-    def __backtracking(self, verbose=False):
+    def __backtracking(self, verbose):
 
         def evaluate_clause(clause, assignment):
             falsified = 0
@@ -130,25 +132,25 @@ class SATSolver:
             return None
 
         assignment = [None for _ in range(self.problem.nbvars)]
-        current_position = 0
+        current_depth = 0
         while True:
             if verbose:
-                print '\ncurrent_position = ' + str(current_position)
-            if current_position < 0:
+                print '\ncurrent_depth = ' + str(current_depth)
+            if current_depth < 0:
                 # we have backtracked the var on index 0, meaning no
                 # satisfying assignment was found
                 self.problem.solution = [0]
                 return
 
-            if assignment[current_position] is None:
-                assignment[current_position] = False
-            elif assignment[current_position] == False:
-                assignment[current_position] = True
+            if assignment[current_depth] is None:
+                assignment[current_depth] = False
+            elif assignment[current_depth] == False:
+                assignment[current_depth] = True
             else: # need to backtrack
                 if verbose:
                     print 'Backtracking...'
-                assignment[current_position] = None
-                current_position -= 1
+                assignment[current_depth] = None
+                current_depth -= 1
                 continue
 
             problem_evaluation = evaluate_problem(self.problem, assignment=assignment, verbose=verbose)
@@ -164,5 +166,89 @@ class SATSolver:
                     print 'Pruning'
                 continue
 
-            if current_position < self.problem.nbvars - 1:
-                current_position += 1
+            if current_depth < self.problem.nbvars - 1:
+                current_depth += 1
+
+
+    def __backtracking_simplify(self, verbose):
+
+        def evaluate_clause(clause, assignment):
+            falsified = 0
+            for literal in clause:
+                if ( literal & 1 == 0 and assignment[literal/2] ) or \
+                        ( literal & 1 and assignment[literal/2] == False ):
+                    return True
+                if ( literal & 1 and assignment[literal/2] ) or \
+                        ( literal & 1 == 0 and assignment[literal/2] == False ):
+                    falsified += 1
+            if falsified == len(clause):
+                return False
+            return None
+
+        def evaluate_problem(problem, assignment, depth, verbose):
+            correct = 0
+            for i in range(problem.nbclauses):
+                if depth < self.depth_of_disablement[i]:
+                    clause_evaluation = evaluate_clause(clause=problem.clauses[i], assignment=assignment)
+                    if verbose:
+                        print 'Clause {0} eval to {1}'.format(problem.clauses[i], clause_evaluation)
+                    if clause_evaluation:
+                        correct += 1
+                        self.depth_of_disablement[i] = depth
+                    elif clause_evaluation == False:
+                        return False
+                else:
+                    correct += 1
+            if correct == problem.nbclauses:
+                return True
+            return None
+
+        assignment = [None for _ in range(self.problem.nbvars)]
+        # if current_depth > depth_of_disablement[i], than that means that
+        # i-th clause is disabled, meaning we don't need to check it because
+        # it has already been satisfied
+        self.depth_of_disablement = [self.problem.nbvars for _ in range(self.problem.nbclauses)]
+        current_depth = 0
+        while True:
+            if verbose:
+                print '\ncurrent_depth = ' + str(current_depth)
+                print self.depth_of_disablement
+
+            if current_depth < 0:
+                # we have backtracked the var on index 0, meaning no
+                # satisfying assignment was found
+                self.problem.solution = [0]
+                return
+
+            if assignment[current_depth] is None:
+                assignment[current_depth] = False
+            elif assignment[current_depth] == False:
+                assignment[current_depth] = True
+            else: # need to backtrack
+                if verbose:
+                    print 'Backtracking...'
+                assignment[current_depth] = None
+                current_depth -= 1
+                self.depth_of_disablement[:] = [d if d < current_depth else self.problem.nbvars for d in range(self.problem.nbclauses)]
+                continue
+
+            problem_evaluation = evaluate_problem(self.problem, assignment=assignment, depth=current_depth, verbose=verbose)
+
+            if verbose:
+                print '{0} => {1}'.format(assignment, problem_evaluation)
+
+            if problem_evaluation: # if assignment satisfies all clauses, we have found a solution
+                self.problem.solution = assignment
+                return
+            elif problem_evaluation == False: # if assignment falsifies a clause, we can prune
+                if verbose:
+                    print 'Pruning'
+                self.depth_of_disablement[:] = [d if d < current_depth else self.problem.nbvars for d in range(self.problem.nbclauses)]
+                continue
+
+            if current_depth < self.problem.nbvars - 1:
+                current_depth += 1
+
+
+    def __dpll(self, verbose):
+        pass
