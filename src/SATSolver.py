@@ -50,10 +50,12 @@ class SATSolver:
             for i in range(len(self.problem.solution)):
                 if self.problem.solution[i]:
                     output += str(i+1)
+                    if i < len(self.problem.solution) - 1:
+                        output += ' '
                 elif self.problem.solution[i] == False:
                     output += '-' + str(i+1)
-                if i < self.problem.nbvars - 1:
-                    output += ' '
+                    if i < len(self.problem.solution) - 1:
+                        output += ' '
             print output
             #print ' '.join([str(i+1) if self.problem.solution[i] elif '-{}'.format(i+1) \
             #    for i in range(len(self.problem.solution))])
