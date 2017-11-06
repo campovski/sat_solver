@@ -1,9 +1,27 @@
 import sys
+import SATProblem
 
+"""
+    SATSolver: Provides methods for solving SAT problems. Possible algorithms are
+    naive backtracking, backtracking with pruning falsified trees, backtracking
+    with pruning falsified trees and removing clauses that are true on certain
+    depths, and DPLL.
+    @param problem : A problem to be solved.
+    @method solver : Solves the problem.
+"""
 class SATSolver:
     def __init__(self, problem=None):
         self.problem = problem
 
+
+    """
+        solve: Solves the problem of current object.
+        @param unit : Unit propagation (DPLL)
+        @param simplify : Backtracking with simplification
+        @param pruning : Backtracking with pruning
+        @param f : Print to file f
+        @param verbose : Print progress to console
+    """
     def solve(self, unit=False, pruning=False, simplify=False, f=None, verbose=False):
         assert self.problem.__class__.__name__ == 'SATProblem', \
                 'Problem must be of type SATProblem. type(problem) = {}'.format(self.problem.__class__.__name__)
@@ -11,7 +29,7 @@ class SATSolver:
         if verbose:
             print '[OK] Started solving ...'
 
-        if unit and pruning and simplify:
+        if unit:
             self.__dpll(verbose=verbose)
         elif simplify:
             self.__backtracking_simplify(verbose=verbose)
@@ -29,7 +47,7 @@ class SATSolver:
             print 0
         else:
             output = ''
-            for i in range(self.problem.nbvars):
+            for i in range(len(self.problem.solution)):
                 if self.problem.solution[i]:
                     output += str(i+1)
                 elif self.problem.solution[i] == False:
@@ -47,7 +65,9 @@ class SATSolver:
         if verbose:
             print '[DONE]'
 
-
+    """
+        Naive backtracking algorithm.
+    """
     def __backtracking_naive(self, verbose):
 
         def evaluate_clause(clause, assignment):
@@ -102,6 +122,9 @@ class SATSolver:
                 current_depth += 1
 
 
+    """
+        Backtracking with pruning.
+    """
     def __backtracking(self, verbose):
 
         def evaluate_clause(clause, assignment):
@@ -170,6 +193,10 @@ class SATSolver:
                 current_depth += 1
 
 
+    """
+        Backtracking with pruning and omiting checking the truthful clauses on
+        current_depth and assignment.
+    """
     def __backtracking_simplify(self, verbose):
 
         def evaluate_clause(clause, assignment):
@@ -250,5 +277,90 @@ class SATSolver:
                 current_depth += 1
 
 
+    """
+        DPLL algorithm. Uses pruning with simplification and unit propagation.
+    """
     def __dpll(self, verbose):
-        pass
+
+        def is_consistent(clauses, assignment):
+            for clause in clauses:
+                if len([l for l in clause if l in assignment]) == 0:
+                    return False
+            return True
+
+        def complement(assignment):
+            out = []
+            for literal in assignment:
+                if literal & 1 == 0:
+                    out.append(literal+1)
+                else:
+                    out.append(literal-1)
+            return out
+
+        def falsified(clauses, assignment):
+            complements = complement(assignment)
+            for clause in clauses:
+                if len([l for l in clause if l not in complements]) == 0:
+                    return True
+            return False
+
+        def pure_literal_assignment(clauses, assignment):
+            complements = complement(assignment)
+            candidates = []
+            for clause in clauses:
+                if len([l for l in clause if l in assignment]) == 0:
+                    candidates += [l for l in clause]
+            candidatesComplements = complement(candidates)
+            pures = [l for l in candidates if l not in candidatesComplements]
+            for literal in pures:
+                if literal not in assignment and literal not in complements:
+                    return literal
+            return -1
+
+        def unit_propagation(clauses, assignment):
+            complements = complement(assignment)
+            for clause in clauses:
+                remaining = [l for l in clauses if l not in complements]
+                if len(remaining) == 1:
+                    if remaining[0] not in assignment:
+                        return remaining[0]
+            return -1
+
+        def get_new_atom(clauses, assignment):
+            assPlusComp = assignment + complement(assignment)
+            for clause in clauses:
+                for literal in clause:
+                    if literal not in assPlusComp:
+                        return literal
+            return -1
+
+        def dpll_rec(clauses, assignment):
+            if is_consistent(clauses, assignment):
+                return assignment
+            if falsified(clauses, assignment):
+                return False
+            pure = pure_literal_assignment(clauses, assignment)
+            if pure != -1:
+                return dpll_rec(clauses, assignment + [pure])
+            unit = unit_propagation(clauses, assignment)
+            if unit != -1:
+                return dpll_rec(clauses, assignment + [unit])
+            new_atom = get_new_atom(clauses, assignment)
+            if new_atom != -1:
+                new_atom = (new_atom / 2) * 2
+                out = dpll_rec(clauses, assignment + [new_atom])
+                if out:
+                    return out
+                else:
+                    out = dpll_rec(clauses, assignment + [new_atom+1])
+                    if out:
+                        return out
+                    else:
+                        return False
+
+        out = dpll_rec(self.problem.clauses, [])
+        if out:
+            for literal in out:
+                self.problem.solution[literal/2] = literal & 1 == 0
+        else:
+            self.problem.solution = [0]

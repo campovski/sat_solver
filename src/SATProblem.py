@@ -54,6 +54,8 @@ class SATProblem:
                         continue
                     self.__add_clause(line.strip())
 
+        self.solution = [None for _ in range(self.nbvars)]
+
         assert self.nbvars > 0, '[ERROR] self.nbvars > 0: self.nbvars = {}'.format(self.nbvars)
         assert len(self.clauses) == self.nbclauses, '[ERROR] len(self.clauses) does not match self.nbclauses:\
             len(self.clauses) = {0}, self.nbclauses = {1}'.format(len(self.clauses), self.nbclauses)
